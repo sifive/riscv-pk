@@ -2,6 +2,7 @@
 #include "encoding.h"
 #include "mtrap.h"
 #include "atomic.h"
+#include "device.h"
 #include <stdio.h>
 
 static void query_mem(const char* config_string)
@@ -88,6 +89,13 @@ static void query_harts(const char* config_string)
   assert(num_harts <= MAX_HARTS);
 }
 
+static void query_uart(const char* config_string)
+{
+  query_result res = query_config_string(config_string, "uart{addr");
+  assert(res.start);
+  uart = (void*)(uintptr_t)get_uint(res);
+}
+
 void parse_config_string()
 {
   uint32_t addr = *(uint32_t*)CONFIG_STRING_ADDR;
@@ -96,4 +104,5 @@ void parse_config_string()
   query_plic(s);
   query_rtc(s);
   query_harts(s);
+  query_uart(s);
 }

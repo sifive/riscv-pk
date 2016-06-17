@@ -3,6 +3,7 @@
 #include "htif.h"
 #include "atomic.h"
 #include "bits.h"
+#include "device.h"
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -29,13 +30,19 @@ static void request_htif_keyboard_interrupt()
 static void htif_interrupt()
 {
   // we should only be interrupted by keypresses
-  uint64_t fh = fromhost;
-  if (!fh)
-    return;
-  if (!(FROMHOST_DEV(fh) == 1 && FROMHOST_CMD(fh) == 0))
-    die("unexpected htif interrupt");
-  HLS()->console_ibuf = 1 + (uint8_t)FROMHOST_DATA(fh);
-  fromhost = 0;
+  if (uart) {
+    if (*(uart + UART_RXCNT) == 0)
+      return;
+    HLS()->console_ibuf = 1 + *(uart + UART_DATA);
+  } else {
+    uint64_t fh = fromhost;
+    if (!fh)
+      return;
+    if (!(FROMHOST_DEV(fh) == 1 && FROMHOST_CMD(fh) == 0))
+      die("unexpected htif interrupt");
+    HLS()->console_ibuf = 1 + (uint8_t)FROMHOST_DATA(fh);
+    fromhost = 0;
+  }
   set_csr(mip, MIP_SSIP);
 }
 
@@ -71,7 +78,11 @@ uintptr_t timer_interrupt()
 
 static uintptr_t mcall_console_putchar(uint8_t ch)
 {
-  do_tohost_fromhost(1, 1, ch);
+  if (uart) {
+    *(uart + UART_DATA) = ch;
+  } else {
+    do_tohost_fromhost(1, 1, ch);
+  }
   return 0;
 }
 
@@ -134,8 +145,10 @@ static void reset_ssip()
 static uintptr_t mcall_console_getchar()
 {
   int ch = atomic_swap(&HLS()->console_ibuf, -1);
-  if (ch >= 0)
-    request_htif_keyboard_interrupt();
+  if (!uart) {
+    if (ch >= 0)
+      request_htif_keyboard_interrupt();
+  }
   reset_ssip();
   return ch - 1;
 }

@@ -12,6 +12,7 @@ uintptr_t num_harts;
 volatile uint64_t* mtime;
 volatile uint32_t* plic_priorities;
 size_t plic_ndevs;
+volatile uint32_t* uart;
 
 static void mstatus_init()
 {
