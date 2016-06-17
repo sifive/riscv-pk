@@ -56,7 +56,7 @@ sbi_base:
 
   # timebase
   .align 4
-  li a0, 10000000 # or, you know, we could provide the correct answer
+  li a0, 1000000
   ret
 
   # shutdown
