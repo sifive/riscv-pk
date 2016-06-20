@@ -92,7 +92,7 @@ static void query_harts(const char* config_string)
 static void query_uart(const char* config_string)
 {
   query_result res = query_config_string(config_string, "uart{addr");
-  assert(res.start);
+  if (!res.start) return;
   uart = (void*)(uintptr_t)get_uint(res);
 }
 
