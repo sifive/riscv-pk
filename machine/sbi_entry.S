@@ -96,6 +96,18 @@ sbi_base:
   ecall
   ret
 
+  # config_string_base
+  .align 4
+  li a7, MCALL_CONFIG_STRING_BASE
+  ecall
+  ret
+
+  # config_string_size
+  .align 4
+  li a7, MCALL_CONFIG_STRING_SIZE
+  ecall
+  ret
+
   # end of SBI trampolines
 
   .globl do_mcall
