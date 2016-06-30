@@ -24,7 +24,7 @@ static void query_rtc(const char* config_string)
 
 static void query_plic(const char* config_string)
 {
-  query_result res = query_config_string(config_string, "plic{priority");
+  query_result res = query_config_string(config_string, "plic{priority{mem");
   if (!res.start)
     return;
   plic_priorities = (uint32_t*)(uintptr_t)get_uint(res);
@@ -38,22 +38,22 @@ static void query_plic(const char* config_string)
 static void query_hart_plic(const char* config_string, hls_t* hls, int core, int hart)
 {
   char buf[32];
-  snprintf(buf, sizeof buf, "core{%d{%d{plic{m{ie", core, hart);
+  snprintf(buf, sizeof buf, "plic{%d{%d{m{ie{mem", core, hart);
   query_result res = query_config_string(config_string, buf);
   if (res.start)
     hls->plic_m_ie = (void*)(uintptr_t)get_uint(res);
 
-  snprintf(buf, sizeof buf, "core{%d{%d{plic{m{thresh", core, hart);
+  snprintf(buf, sizeof buf, "plic{%d{%d{m{ctl{mem", core, hart);
   res = query_config_string(config_string, buf);
   if (res.start)
     hls->plic_m_thresh = (void*)(uintptr_t)get_uint(res);
 
-  snprintf(buf, sizeof buf, "core{%d{%d{plic{s{ie", core, hart);
+  snprintf(buf, sizeof buf, "plic{%d{%d{s{ie{mem", core, hart);
   res = query_config_string(config_string, buf);
   if (res.start)
     hls->plic_s_ie = (void*)(uintptr_t)get_uint(res);
 
-  snprintf(buf, sizeof buf, "core{%d{%d{plic{s{thresh", core, hart);
+  snprintf(buf, sizeof buf, "plic{%d{%d{s{ctl{mem", core, hart);
   res = query_config_string(config_string, buf);
   if (res.start)
     hls->plic_s_thresh = (void*)(uintptr_t)get_uint(res);
