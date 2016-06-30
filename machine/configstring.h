@@ -45,15 +45,24 @@ typedef struct {
 static query_result query_config_string(const char* str, const char* k)
 {
   size_t ksize = 0;
-  while (k[ksize] && k[ksize] != '{')
-    ksize++;
-  int last = !k[ksize];
+  int last = 0;
+  
+  if (k) {
+    while (k[ksize] && k[ksize] != '{')
+      ksize++;
+    last = !k[ksize];
+  }
 
   query_result res = {0, 0};
   while (1) {
     const char* key_start = str = skip_whitespace(str);
     const char* key_end = str = skip_key(str);
-    int match = (size_t)(key_end - key_start) == ksize;
+    if (k && !ksize) {
+      res.start = key_start;
+      res.end = key_end;
+      return res;
+    }
+    int match = k && (size_t)(key_end - key_start) == ksize;
     if (match)
       for (size_t i = 0; i < ksize; i++)
         if (key_start[i] != k[i])
@@ -65,7 +74,7 @@ static query_result query_config_string(const char* str, const char* k)
       } else if (*str == '"') {
         str = skip_string(str+1);
       } else if (*str == '{') {
-        const char* search_key = match && !last ? k + ksize + 1 : "";
+        const char* search_key = !match ? 0 : (last ? "" : k + ksize + 1);
         query_result inner_res = query_config_string(str + 1, search_key);
         if (inner_res.start)
           return inner_res;
