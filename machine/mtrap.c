@@ -9,8 +9,8 @@
 #include <stdio.h>
 #include <string.h>
 
-volatile uint64_t tohost __attribute__((aligned(64)));
-volatile uint64_t fromhost __attribute__((aligned(64)));
+volatile uint64_t tohost __attribute__((aligned(64))) __attribute__((section("htif")));
+volatile uint64_t fromhost __attribute__((aligned(64))) __attribute__((section("htif")));
 
 void __attribute__((noreturn)) bad_trap()
 {
@@ -297,13 +297,12 @@ void redirect_trap(uintptr_t epc, uintptr_t mstatus)
   write_csr(scause, read_csr(mcause));
   write_csr(mepc, read_csr(stvec));
 
-  uintptr_t prev_priv = EXTRACT_FIELD(mstatus, MSTATUS_MPP);
-  uintptr_t prev_ie = EXTRACT_FIELD(mstatus, MSTATUS_MPIE);
-  mstatus = INSERT_FIELD(mstatus, MSTATUS_SPP, prev_priv);
-  mstatus = INSERT_FIELD(mstatus, MSTATUS_SPIE, prev_ie);
-  mstatus = INSERT_FIELD(mstatus, MSTATUS_MPP, PRV_S);
-  mstatus = INSERT_FIELD(mstatus, MSTATUS_MPIE, 0);
-  write_csr(mstatus, mstatus);
+  uintptr_t new_mstatus = mstatus & ~(MSTATUS_SPP | MSTATUS_SPIE | MSTATUS_MPIE);
+  uintptr_t mpp_s = MSTATUS_MPP & (MSTATUS_MPP >> 1);
+  new_mstatus |= (mstatus / (MSTATUS_MPIE / MSTATUS_SPIE)) & MSTATUS_SPIE;
+  new_mstatus |= (mstatus / (mpp_s / MSTATUS_SPP)) & MSTATUS_SPP;
+  new_mstatus |= mpp_s;
+  write_csr(mstatus, new_mstatus);
 
   extern void __redirect_trap();
   return __redirect_trap();

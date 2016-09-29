@@ -62,8 +62,9 @@ static void fp_init()
     init_fp_reg(i);
   write_csr(fcsr, 0);
 #else
-  if (supports_extension('D'))
-    die("FPU unexpectedly found; recompile with -mhard-float");
+  uintptr_t fd_mask = (1 << ('F' - 'A')) | (1 << ('D' - 'A'));
+  clear_csr(misa, fd_mask);
+  assert(!(read_csr(misa) & fd_mask));
 #endif
 }
 
@@ -144,12 +145,6 @@ void init_first_hart()
 void init_other_hart()
 {
   hart_init();
-
-  // wait until hart 0 discovers us
-  while (*(uint64_t * volatile *)&HLS()->timecmp == NULL)
-    ;
-  mb();
-
   hart_plic_init();
   boot_other_hart();
 }
