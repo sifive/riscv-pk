@@ -32,9 +32,10 @@ static void htif_interrupt()
 {
   // we should only be interrupted by keypresses
   if (uart) {
-    if (*(uart + UART_RXCNT) == 0)
+    int32_t ch = uart[UART_REG_RXFIFO];
+    if (ch < 0)
       return;
-    HLS()->console_ibuf = 1 + *(uart + UART_DATA);
+    HLS()->console_ibuf = 1 + ch;
   } else {
     uint64_t fh = fromhost;
     if (!fh)
@@ -80,7 +81,9 @@ uintptr_t timer_interrupt()
 static uintptr_t mcall_console_putchar(uint8_t ch)
 {
   if (uart) {
-    *(uart + UART_DATA) = ch;
+    volatile uint32_t *tx = uart + UART_REG_TXFIFO;
+    while ((int32_t)(*tx) < 0); // TODO: Use amoswap.w
+    *tx = ch;
   } else {
     do_tohost_fromhost(1, 1, ch);
   }

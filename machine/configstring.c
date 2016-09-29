@@ -97,6 +97,10 @@ static void query_uart(const char* config_string)
   query_result res = query_config_string(config_string, "uart{addr");
   if (!res.start) return;
   uart = (void*)(uintptr_t)get_uint(res);
+
+  // Enable Rx/Tx channels
+  uart[UART_REG_TXCTRL] = UART_TXEN;
+  uart[UART_REG_RXCTRL] = UART_RXEN;
 }
 
 void parse_config_string()
