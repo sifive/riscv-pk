@@ -46,7 +46,6 @@ void load_elf(const char* fn, elf_info* info)
   assert(!(eh.e_flags & EF_RISCV_RVC));
 #endif
 
-  uintptr_t min_vaddr = -1;
   size_t phdr_size = eh.e_phnum * sizeof(Elf_Phdr);
   if (phdr_size > info->phdr_size)
     goto fail;
@@ -56,14 +55,19 @@ void load_elf(const char* fn, elf_info* info)
   info->phnum = eh.e_phnum;
   info->phent = sizeof(Elf_Phdr);
   Elf_Phdr* ph = (typeof(ph))info->phdr;
+
+  // compute highest VA in ELF
+  uintptr_t max_vaddr = 0;
   for (int i = 0; i < eh.e_phnum; i++)
-    if (ph[i].p_type == PT_LOAD && ph[i].p_memsz && ph[i].p_vaddr < min_vaddr)
-      min_vaddr = ph[i].p_vaddr;
-  min_vaddr = ROUNDDOWN(min_vaddr, RISCV_PGSIZE);
+    if (ph[i].p_type == PT_LOAD && ph[i].p_memsz)
+      max_vaddr = MAX(max_vaddr, ph[i].p_vaddr + ph[i].p_memsz);
+  max_vaddr = ROUNDUP(max_vaddr, RISCV_PGSIZE);
+
+  // don't load dynamic linker at 0, else we can't catch NULL pointer derefs
   uintptr_t bias = 0;
   if (eh.e_type == ET_DYN)
-    bias = first_free_paddr - min_vaddr;
-  min_vaddr += bias;
+    bias = RISCV_PGSIZE;
+
   info->entry = eh.e_entry + bias;
   int flags = MAP_FIXED | MAP_PRIVATE;
   for (int i = eh.e_phnum - 1; i >= 0; i--) {
@@ -74,9 +78,12 @@ void load_elf(const char* fn, elf_info* info)
         info->brk_min = vaddr + ph[i].p_memsz;
       int flags2 = flags | (prepad ? MAP_POPULATE : 0);
       int prot = get_prot(ph[i].p_flags);
-      if (__do_mmap(vaddr - prepad, ph[i].p_filesz + prepad, prot, flags2, file, ph[i].p_offset - prepad) != vaddr - prepad)
+      if (__do_mmap(vaddr - prepad, ph[i].p_filesz + prepad, prot | PROT_WRITE, flags2, file, ph[i].p_offset - prepad) != vaddr - prepad)
         goto fail;
       memset((void*)vaddr - prepad, 0, prepad);
+      if (!(prot & PROT_WRITE))
+        if (do_mprotect(vaddr - prepad, ph[i].p_filesz + prepad, prot))
+          goto fail;
       size_t mapped = ROUNDUP(ph[i].p_filesz + prepad, RISCV_PGSIZE) - prepad;
       if (ph[i].p_memsz > mapped)
         if (__do_mmap(vaddr + mapped, ph[i].p_memsz - mapped, prot, flags|MAP_ANONYMOUS, 0, 0) != vaddr + mapped)
