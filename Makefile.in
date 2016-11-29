@@ -84,7 +84,7 @@ VPATH := $(addprefix $(src_dir)/, $(sprojs_enabled))
 #  - CXXFLAGS : flags for C++ compiler (eg. -Wall,-g,-O3)
 
 CC            := @CC@
-CFLAGS        := @CFLAGS@ $(CFLAGS) -DBBL_PAYLOAD=\"$(bbl_payload)\" -msoft-float
+CFLAGS        := @CFLAGS@ $(CFLAGS) -DBBL_PAYLOAD=\"$(bbl_payload)\" -mno-float
 COMPILE       := $(CC) -MMD -MP $(CFLAGS) \
                  $(sprojs_include)
 # Linker
