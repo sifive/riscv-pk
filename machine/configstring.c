@@ -78,11 +78,6 @@ static void query_harts(const char* config_string)
       assert(res.start);
       hls->timecmp = (void*)(uintptr_t)get_uint(res);
 
-      mb();
-
-      // wake up the hart
-      *hls->ipi = 1;
-
       num_harts++;
     }
     if (!hart)

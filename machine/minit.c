@@ -130,15 +130,23 @@ static void hart_plic_init()
   *HLS()->plic_s_thresh = 0;
 }
 
+static void wake_other_harts()
+{
+  mb();
+  for (int hart = 1; hart < num_harts; ++hart)
+   *OTHER_HLS(hart)->ipi = 1;
+}
+
 void init_first_hart()
 {
   hart_init();
   hls_init(0); // this might get called again from parse_config_string
   parse_config_string();
+  memory_init();
+  wake_other_harts();
   plic_init();
   hart_plic_init();
   //prci_test();
-  memory_init();
   boot_loader();
 }
 
