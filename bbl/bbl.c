@@ -32,14 +32,14 @@ static uintptr_t filter_dtb(uintptr_t source)
   return dest;
 }
 
-void boot_other_hart(uintptr_t dtb)
+void boot_other_hart(uintptr_t unused __attribute__((unused)))
 {
   const void* entry;
   do {
     entry = entry_point;
     mb();
   } while (!entry);
-  enter_supervisor_mode(entry, read_csr(mhartid), dtb);
+  enter_supervisor_mode(entry, read_csr(mhartid), dtb_output());
 }
 
 void boot_loader(uintptr_t dtb)
@@ -54,5 +54,5 @@ void boot_loader(uintptr_t dtb)
 #endif
   mb();
   entry_point = &_payload_start;
-  boot_other_hart(dtb);
+  boot_other_hart(0);
 }
