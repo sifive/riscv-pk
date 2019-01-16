@@ -297,4 +297,12 @@ do_reset:
   .bss
   .align RISCV_PGSHIFT
 stacks:
-  .skip RISCV_PGSIZE * MAX_HARTS
+	.skip RISCV_PGSIZE * MAX_HARTS
+
+	.section ".data"
+	.align 6
+	.globl my_dtb, my_dtb_end
+my_dtb:
+	.incbin "../linux.dtb"
+	.align 6
+my_dtb_end:
