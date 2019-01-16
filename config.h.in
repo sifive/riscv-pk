@@ -30,6 +30,9 @@
 /* Define if subproject MCPPBS_SPROJ_NORM is enabled */
 #undef PK_ENABLED
 
+/* Embed a DTB to be passed to the kernel */
+#undef PK_ENABLE_DTB
+
 /* Define if floating-point emulation is enabled */
 #undef PK_ENABLE_FP_EMULATION
 

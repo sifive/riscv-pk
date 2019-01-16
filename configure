@@ -590,6 +590,7 @@ ac_subst_vars='LTLIBOBJS
 LIBOBJS
 subprojects_enabled
 subprojects
+BBL_DTB_FILE
 BBL_LOGO_FILE
 BBL_PAYLOAD
 install_subdir
@@ -677,6 +678,8 @@ enable_logo
 with_payload
 with_logo
 enable_fp_emulation
+enable_dtb
+with_dtb_path
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1326,12 +1329,14 @@ Optional Features:
   --disable-vm            Disable virtual memory
   --enable-logo           Enable boot logo
   --disable-fp-emulation  Disable floating-point emulation
+  --enable-dtb            Enable embedded DTB
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-payload          Set ELF payload for bbl
   --with-logo             Specify a better logo
+  --with-dtb-path         Specify path to the DTB
 
 Some influential environment variables:
   CC          C compiler command
@@ -4092,7 +4097,6 @@ case "${BUILD_32BIT}" in
 	CFLAGS="$default_CFLAGS"
 	LDFLAGS=
 	install_subdir=$host_alias
-
 	;;
 esac
 
@@ -4416,6 +4420,30 @@ $as_echo "#define PK_ENABLE_FP_EMULATION /**/" >>confdefs.h
 
 
 fi
+
+# Check whether --enable-dtb was given.
+if test "${enable_dtb+set}" = set; then :
+  enableval=$enable_dtb;
+fi
+
+if test "x$enable_dtb" == "xyes"; then :
+
+
+$as_echo "#define PK_ENABLE_DTB /**/" >>confdefs.h
+
+
+fi
+
+
+# Check whether --with-dtb-path was given.
+if test "${with_dtb_path+set}" = set; then :
+  withval=$with_dtb_path; BBL_DTB_FILE=$with_dtb_path
+
+else
+  BBL_DTB_FILE=kernel.dtb
+
+fi
+
 
 
 

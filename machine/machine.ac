@@ -2,3 +2,12 @@ AC_ARG_ENABLE([fp-emulation], AS_HELP_STRING([--disable-fp-emulation], [Disable 
 AS_IF([test "x$enable_fp_emulation" != "xno"], [
   AC_DEFINE([PK_ENABLE_FP_EMULATION],,[Define if floating-point emulation is enabled])
 ])
+
+AC_ARG_ENABLE([dtb], AS_HELP_STRING([--enable-dtb], [Enable embedded DTB]))
+AS_IF([test "x$enable_dtb" == "xyes"], [
+  AC_DEFINE([PK_ENABLE_DTB],,[Embed a DTB to be passed to the kernel])
+])
+
+AC_ARG_WITH([dtb-path], AS_HELP_STRING([--with-dtb-path], [Specify path to the DTB]),
+  [AC_SUBST([BBL_DTB_FILE], $with_dtb_path, [DTB to embed in the bbl])],
+  [AC_SUBST([BBL_DTB_FILE], [kernel.dtb], [DTB to embed in the bbl])])

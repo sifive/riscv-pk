@@ -2,6 +2,7 @@
 
 #include "mtrap.h"
 #include "bits.h"
+#include "config.h"
 
   .data
   .align 6
@@ -298,3 +299,13 @@ do_reset:
   .align RISCV_PGSHIFT
 stacks:
   .skip RISCV_PGSIZE * MAX_HARTS
+
+  .section ".data"
+  .align 6
+  .globl my_dtb, my_dtb_end
+my_dtb:
+#ifdef PK_ENABLE_DTB
+  .incbin BBL_DTB_FILE
+  .align 6
+#endif
+my_dtb_end:
