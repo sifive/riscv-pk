@@ -24,7 +24,7 @@ static uintptr_t dtb_output()
    * thus mandating device-tree is in physical memory after the kernel.
    */
   uintptr_t end = kernel_end ? (uintptr_t)kernel_end : (uintptr_t)&_payload_end;
-  return (end + MEGAPAGE_SIZE - 1) / MEGAPAGE_SIZE * MEGAPAGE_SIZE;
+  return (((end + MEGAPAGE_SIZE - 1) / MEGAPAGE_SIZE) + 16) * MEGAPAGE_SIZE;
 }
 
 static void filter_dtb(uintptr_t source)
@@ -32,6 +32,7 @@ static void filter_dtb(uintptr_t source)
   uintptr_t dest = dtb_output();
   uint32_t size = fdt_size(source);
   memcpy((void*)dest, (void*)source, size);
+  printm("Relocated DTB from %lx to %lx\n", source, dest);
 
   // Remove information from the chained FDT
   filter_harts(dest, &disabled_hart_mask);
