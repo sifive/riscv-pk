@@ -438,7 +438,7 @@ static void plic_done(const struct fdt_scan_node *node, void *extra)
         hls->plic_s_ie     = (uintptr_t*)((uintptr_t)scan->reg + ENABLE_BASE + ENABLE_SIZE * index);
         hls->plic_s_thresh = (uint32_t*) ((uintptr_t)scan->reg + HART_BASE   + HART_SIZE   * index);
       } else {
-        printm("PLIC wired hart %d to wrong interrupt %d", hart, cpu_int);
+        printm("PLIC wired hart %d to wrong interrupt %d\n", hart, cpu_int);
       }
     }
     value += 2;
