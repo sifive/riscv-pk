@@ -389,7 +389,7 @@ static void plic_open(const struct fdt_scan_node *node, void *extra)
 static void plic_prop(const struct fdt_scan_prop *prop, void *extra)
 {
   struct plic_scan *scan = (struct plic_scan *)extra;
-  if (!strcmp(prop->name, "compatible") && fdt_string_list_index(prop, "riscv,plic0") >= 0) {
+  if (!strcmp(prop->name, "compatible") && fdt_string_list_index(prop, "sifive,plic-1.0.0") >= 0) {
     scan->compat = 1;
   } else if (!strcmp(prop->name, "reg")) {
     fdt_get_address(prop->node->parent, prop->value, &scan->reg);
