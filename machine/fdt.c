@@ -5,6 +5,8 @@
 #include "fdt.h"
 #include "mtrap.h"
 
+uint64_t hart_mask;
+
 static inline uint32_t bswap(uint32_t x)
 {
   uint32_t y = (x & 0x00FF00FF) <<  8 | (x & 0xFF00FF00) >>  8;
@@ -197,168 +199,69 @@ void query_mem(uintptr_t fdt)
   assert (mem_size > 0);
 }
 
-///////////////////////////////////////////// HART SCAN //////////////////////////////////////////
+///////////////////////////////////////////// SOC SCAN /////////////////////////////////////////
 
-static uint32_t hart_phandles[MAX_HARTS];
-uint64_t hart_mask;
-
-struct hart_scan {
-  const struct fdt_scan_node *cpu;
-  int hart;
-  const struct fdt_scan_node *controller;
-  int cells;
-  uint32_t phandle;
-};
-
-static void hart_open(const struct fdt_scan_node *node, void *extra)
-{
-  struct hart_scan *scan = (struct hart_scan *)extra;
-  if (!scan->cpu) {
-    scan->hart = -1;
-  }
-  if (!scan->controller) {
-    scan->cells = 0;
-    scan->phandle = 0;
-  }
-}
-
-static void hart_prop(const struct fdt_scan_prop *prop, void *extra)
-{
-  struct hart_scan *scan = (struct hart_scan *)extra;
-  if (!strcmp(prop->name, "device_type") && !strcmp((const char*)prop->value, "cpu")) {
-    assert (!scan->cpu);
-    scan->cpu = prop->node;
-  } else if (!strcmp(prop->name, "interrupt-controller")) {
-    assert (!scan->controller);
-    scan->controller = prop->node;
-  } else if (!strcmp(prop->name, "#interrupt-cells")) {
-    scan->cells = bswap(prop->value[0]);
-  } else if (!strcmp(prop->name, "phandle")) {
-    scan->phandle = bswap(prop->value[0]);
-  } else if (!strcmp(prop->name, "reg")) {
-    uint64_t reg;
-    fdt_get_address(prop->node->parent, prop->value, &reg);
-    scan->hart = reg;
-  }
-}
-
-static void hart_done(const struct fdt_scan_node *node, void *extra)
-{
-  struct hart_scan *scan = (struct hart_scan *)extra;
-
-  if (scan->cpu == node) {
-    assert (scan->hart >= 0);
-  }
-
-  if (scan->controller == node && scan->cpu) {
-    assert (scan->phandle > 0);
-    assert (scan->cells == 1);
-
-    if (scan->hart < MAX_HARTS) {
-      hart_phandles[scan->hart] = scan->phandle;
-      hart_mask |= 1 << scan->hart;
-      hls_init(scan->hart);
-    }
-  }
-}
-
-static int hart_close(const struct fdt_scan_node *node, void *extra)
-{
-  struct hart_scan *scan = (struct hart_scan *)extra;
-  if (scan->cpu == node) scan->cpu = 0;
-  if (scan->controller == node) scan->controller = 0;
-  return 0;
-}
-
-void query_harts(uintptr_t fdt)
-{
-  struct fdt_cb cb;
-  struct hart_scan scan;
-
-  memset(&cb, 0, sizeof(cb));
-  memset(&scan, 0, sizeof(scan));
-  cb.open = hart_open;
-  cb.prop = hart_prop;
-  cb.done = hart_done;
-  cb.close= hart_close;
-  cb.extra = &scan;
-
-  fdt_scan(fdt, &cb);
-
-  // The current hart should have been detected
-  assert ((hart_mask >> read_csr(mhartid)) != 0);
-}
-
-///////////////////////////////////////////// CLINT SCAN /////////////////////////////////////////
-
-struct clint_scan
+struct soc_scan
 {
   int compat;
   uint64_t reg;
-  const uint32_t *int_value;
-  int int_len;
   int done;
+  int harts;
 };
 
-static void clint_open(const struct fdt_scan_node *node, void *extra)
+static void soc_open(const struct fdt_scan_node *node, void *extra)
 {
-  struct clint_scan *scan = (struct clint_scan *)extra;
+  struct soc_scan *scan = (struct soc_scan *)extra;
   scan->compat = 0;
   scan->reg = 0;
-  scan->int_value = 0;
+  scan->harts = 0;
+  /* XXX plic_ndevs ? */
 }
 
-static void clint_prop(const struct fdt_scan_prop *prop, void *extra)
+static void soc_prop(const struct fdt_scan_prop *prop, void *extra)
 {
-  struct clint_scan *scan = (struct clint_scan *)extra;
-  if (!strcmp(prop->name, "compatible") && fdt_string_list_index(prop, "riscv,clint0") >= 0) {
-    scan->compat = 1;
-  } else if (!strcmp(prop->name, "reg")) {
-    fdt_get_address(prop->node->parent, prop->value, &scan->reg);
-  } else if (!strcmp(prop->name, "interrupts-extended")) {
-    scan->int_value = prop->value;
-    scan->int_len = prop->len;
+  struct soc_scan *scan = (struct soc_scan *)extra;
+
+  /* XXX Should look for this along a particular path instead */
+  if (!scan->done && !strcmp(prop->name, "compatible") && fdt_string_list_index(prop, "sifive,fu540-c000") >= 0) {
+    scan->compat = 1; /* XXX should be an SoC type constant */
+    scan->reg = 0x2000000;
+    scan->harts = 5;
+    plic_ndevs = 53;
   }
 }
 
-static void clint_done(const struct fdt_scan_node *node, void *extra)
+static void soc_done(const struct fdt_scan_node *node, void *extra)
 {
-  struct clint_scan *scan = (struct clint_scan *)extra;
-  const uint32_t *value = scan->int_value;
-  const uint32_t *end = value + scan->int_len/4;
+  struct soc_scan *scan = (struct soc_scan *)extra;
 
   if (!scan->compat) return;
   assert (scan->reg != 0);
-  assert (scan->int_value && scan->int_len % 16 == 0);
-  assert (!scan->done); // only one clint
+  assert (!scan->done); // only one soc
 
   scan->done = 1;
   mtime = (void*)((uintptr_t)scan->reg + 0xbff8);
 
-  for (int index = 0; end - value > 0; ++index) {
-    uint32_t phandle = bswap(value[0]);
-    int hart;
-    for (hart = 0; hart < MAX_HARTS; ++hart)
-      if (hart_phandles[hart] == phandle)
-        break;
-    if (hart < MAX_HARTS) {
-      hls_t *hls = OTHER_HLS(hart);
-      hls->ipi = (void*)((uintptr_t)scan->reg + index * 4);
-      hls->timecmp = (void*)((uintptr_t)scan->reg + 0x4000 + (index * 8));
-    }
-    value += 4;
+  hart_mask |= 0x1f; /* 5 harts on the FU540 */
+  for (int hart = 0; hart < scan->harts; ++hart)
+    hls_init(hart);
+
+  for (int hart = 0; hart < scan->harts; ++hart) {
+    hls_t *hls = OTHER_HLS(hart);
+    hls->ipi = (void*)((uintptr_t)scan->reg + hart * 4);
+    hls->timecmp = (void*)((uintptr_t)scan->reg + 0x4000 + (hart * 8));
   }
 }
 
-void query_clint(uintptr_t fdt)
+void query_soc(uintptr_t fdt)
 {
   struct fdt_cb cb;
-  struct clint_scan scan;
+  struct soc_scan scan;
 
   memset(&cb, 0, sizeof(cb));
-  cb.open = clint_open;
-  cb.prop = clint_prop;
-  cb.done = clint_done;
+  cb.open = soc_open;
+  cb.prop = soc_prop;
+  cb.done = soc_done;
   cb.extra = &scan;
 
   scan.done = 0;
@@ -396,8 +299,6 @@ static void plic_prop(const struct fdt_scan_prop *prop, void *extra)
   } else if (!strcmp(prop->name, "interrupts-extended")) {
     scan->int_value = prop->value;
     scan->int_len = prop->len;
-  } else if (!strcmp(prop->name, "riscv,ndev")) {
-    scan->ndev = bswap(prop->value[0]);
   }
 }
 
@@ -415,20 +316,15 @@ static void plic_done(const struct fdt_scan_node *node, void *extra)
   if (!scan->compat) return;
   assert (scan->reg != 0);
   assert (scan->int_value && scan->int_len % 8 == 0);
-  assert (scan->ndev >= 0 && scan->ndev < 1024);
   assert (!scan->done); // only one plic
 
   scan->done = 1;
   plic_priorities = (uint32_t*)(uintptr_t)scan->reg;
-  plic_ndevs = scan->ndev;
 
+  int hart = 0;
   for (int index = 0; end - value > 0; ++index) {
     uint32_t phandle = bswap(value[0]);
     uint32_t cpu_int = bswap(value[1]);
-    int hart;
-    for (hart = 0; hart < MAX_HARTS; ++hart)
-      if (hart_phandles[hart] == phandle)
-        break;
     if (hart < MAX_HARTS) {
       hls_t *hls = OTHER_HLS(hart);
       if (cpu_int == IRQ_M_EXT) {
@@ -441,6 +337,7 @@ static void plic_done(const struct fdt_scan_node *node, void *extra)
         printm("PLIC wired hart %d to wrong interrupt %d\n", hart, cpu_int);
       }
     }
+    hart += 1;
     value += 2;
   }
 #if 0

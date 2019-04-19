@@ -56,9 +56,8 @@ int fdt_string_list_index(const struct fdt_scan_prop *prop, const char *str); //
 
 // Setup memory+clint+plic
 void query_mem(uintptr_t fdt);
-void query_harts(uintptr_t fdt);
 void query_plic(uintptr_t fdt);
-void query_clint(uintptr_t fdt);
+void query_soc(uintptr_t fdt);
 
 // Remove information from FDT
 void filter_harts(uintptr_t fdt, long *disabled_hart_mask);
