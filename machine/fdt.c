@@ -245,6 +245,7 @@ static void soc_done(const struct fdt_scan_node *node, void *extra)
   mtime = (void*)((uintptr_t)scan->reg + 0xbff8);
 
   hart_mask |= 0x1f; /* 5 harts on the FU540 */
+  disabled_hart_mask = 0x1; /* hart 0 */
   for (int hart = 0; hart < scan->harts; ++hart)
     hls_init(hart);
 
@@ -447,6 +448,7 @@ void filter_compat(uintptr_t fdt, const char *compat)
   fdt_scan(fdt, &cb);
 }
 
+#if 0
 //////////////////////////////////////////// CHOSEN SCAN ////////////////////////////////////////
 
 struct chosen_scan {
@@ -582,6 +584,7 @@ void filter_harts(uintptr_t fdt, long *disabled_hart_mask)
   fdt_scan(fdt, &cb);
 }
 
+#endif
 //////////////////////////////////////////// PRINT //////////////////////////////////////////////
 
 #ifdef PK_PRINT_DEVICE_TREE

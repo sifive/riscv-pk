@@ -62,12 +62,12 @@ void query_plic(uintptr_t fdt);
 void query_soc(uintptr_t fdt);
 
 // Remove information from FDT
-void filter_harts(uintptr_t fdt, long *disabled_hart_mask);
 void filter_plic(uintptr_t fdt);
 void filter_compat(uintptr_t fdt, const char *compat);
 
 // The hartids of available harts
 extern uint64_t hart_mask;
+extern long disabled_hart_mask;
 
 // Optional FDT preloaded external payload
 extern void* kernel_start;
