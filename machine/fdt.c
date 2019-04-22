@@ -243,6 +243,7 @@ static void soc_done(const struct fdt_scan_node *node, void *extra)
   mtime = (void*)((uintptr_t)scan->reg + 0xbff8);
 
   hart_mask |= 0x1f; /* 5 harts on the FU540 */
+  disabled_hart_mask = 0x1; /* hart 0 */
   for (int hart = 0; hart < scan->harts; ++hart)
     hls_init(hart);
 
@@ -442,84 +443,6 @@ void filter_compat(uintptr_t fdt, const char *compat)
   scan.compat = compat;
   scan.depth = 0;
   scan.kill = 999;
-  fdt_scan(fdt, &cb);
-}
-
-//////////////////////////////////////////// HART FILTER ////////////////////////////////////////
-
-struct hart_filter {
-  int compat;
-  int hart;
-  char *status;
-  char *mmu_type;
-  long *disabled_hart_mask;
-};
-
-static void hart_filter_open(const struct fdt_scan_node *node, void *extra)
-{
-  struct hart_filter *filter = (struct hart_filter *)extra;
-  filter->status = NULL;
-  filter->mmu_type = NULL;
-  filter->compat = 0;
-  filter->hart = -1;
-}
-
-static void hart_filter_prop(const struct fdt_scan_prop *prop, void *extra)
-{
-  struct hart_filter *filter = (struct hart_filter *)extra;
-  if (!strcmp(prop->name, "device_type") && !strcmp((const char*)prop->value, "cpu")) {
-    filter->compat = 1;
-  } else if (!strcmp(prop->name, "reg")) {
-    uint64_t reg;
-    fdt_get_address(prop->node->parent, prop->value, &reg);
-    filter->hart = reg;
-  } else if (!strcmp(prop->name, "status")) {
-    filter->status = (char*)prop->value;
-  } else if (!strcmp(prop->name, "mmu-type")) {
-    filter->mmu_type = (char*)prop->value;
-  }
-}
-
-static bool hart_filter_mask(const struct hart_filter *filter)
-{
-  if (filter->mmu_type == NULL) return true;
-  if (strcmp(filter->status, "okay")) return true;
-  if (!strcmp(filter->mmu_type, "riscv,sv39")) return false;
-  if (!strcmp(filter->mmu_type, "riscv,sv48")) return false;
-  printm("hart_filter_mask saw unknown hart type: status=\"%s\", mmu_type=\"%s\"\n",
-         filter->status, filter->mmu_type);
-  return true;
-}
-
-static void hart_filter_done(const struct fdt_scan_node *node, void *extra)
-{
-  struct hart_filter *filter = (struct hart_filter *)extra;
-
-  if (!filter->compat) return;
-  assert (filter->status);
-  assert (filter->hart >= 0);
-
-  if (hart_filter_mask(filter)) {
-    strcpy(filter->status, "masked");
-    uint32_t *len = (uint32_t*)filter->status;
-    len[-2] = bswap(strlen("masked")+1);
-    *filter->disabled_hart_mask |= (1 << filter->hart);
-  }
-}
-
-void filter_harts(uintptr_t fdt, long *disabled_hart_mask)
-{
-  struct fdt_cb cb;
-  struct hart_filter filter;
-
-  memset(&cb, 0, sizeof(cb));
-  cb.open = hart_filter_open;
-  cb.prop = hart_filter_prop;
-  cb.done = hart_filter_done;
-  cb.extra = &filter;
-
-  filter.disabled_hart_mask = disabled_hart_mask;
-  *disabled_hart_mask = 0;
   fdt_scan(fdt, &cb);
 }
 
