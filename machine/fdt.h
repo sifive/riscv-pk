@@ -45,32 +45,4 @@ struct fdt_cb {
   void *extra;
 };
 
-// Scan the contents of FDT
-void fdt_scan(uintptr_t fdt, const struct fdt_cb *cb);
-uint32_t fdt_size(uintptr_t fdt);
-
-// Extract fields
-const uint32_t *fdt_get_address(const struct fdt_scan_node *node, const uint32_t *base, uint64_t *value);
-const uint32_t *fdt_get_size(const struct fdt_scan_node *node, const uint32_t *base, uint64_t *value);
-int fdt_string_list_index(const struct fdt_scan_prop *prop, const char *str); // -1 if not found
-
-// Setup memory+clint+plic
-void query_mem(uintptr_t fdt);
-void query_harts(uintptr_t fdt);
-void query_plic(uintptr_t fdt);
-void query_clint(uintptr_t fdt);
-
-// Remove information from FDT
-void filter_harts(uintptr_t fdt, long *disabled_hart_mask);
-void filter_plic(uintptr_t fdt);
-void filter_compat(uintptr_t fdt, const char *compat);
-
-// The hartids of available harts
-extern uint64_t hart_mask;
-
-#ifdef PK_PRINT_DEVICE_TREE
-// Prints the device tree to the console as a DTS
-void fdt_print(uintptr_t fdt);
-#endif
-
 #endif

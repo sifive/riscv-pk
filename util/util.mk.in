@@ -5,5 +5,6 @@ util_hdrs = \
 util_c_srcs = \
   snprintf.c \
   string.c \
+  fdtutil.c \
 
 util_asm_srcs = \

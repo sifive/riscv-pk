@@ -8,6 +8,7 @@
 #include "uart16550.h"
 #include "finisher.h"
 #include "fdt.h"
+#include "probe.h"
 #include "unprivileged_memory.h"
 #include "disabled_hart_mask.h"
 #include <errno.h>

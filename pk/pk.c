@@ -3,6 +3,7 @@
 #include "boot.h"
 #include "elf.h"
 #include "mtrap.h"
+#include "probe.h"
 #include "frontend.h"
 #include <stdbool.h>
 

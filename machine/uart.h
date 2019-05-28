@@ -14,6 +14,7 @@ extern volatile uint32_t* uart;
 #define UART_TXEN		 0x1
 #define UART_RXEN		 0x1
 
+void uart_enable_rx_tx();
 void uart_putchar(uint8_t ch);
 int uart_getchar();
 void query_uart(uintptr_t dtb);

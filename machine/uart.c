@@ -4,6 +4,12 @@
 
 volatile uint32_t* uart;
 
+void uart_enable_rx_tx()
+{
+  uart[UART_REG_TXCTRL] = UART_TXEN;
+  uart[UART_REG_RXCTRL] = UART_RXEN;
+}
+
 void uart_putchar(uint8_t ch)
 {
 #ifdef __riscv_atomic
