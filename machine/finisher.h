@@ -10,6 +10,5 @@ extern volatile uint32_t* finisher;
 #define FINISHER_PASS		0x5555
 
 void finisher_exit(uint16_t code);
-void query_finisher(uintptr_t fdt);
 
 #endif

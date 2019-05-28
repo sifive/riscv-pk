@@ -6,6 +6,10 @@ void query_mem(uintptr_t fdt);
 void query_harts(uintptr_t fdt);
 void query_plic(uintptr_t fdt);
 void query_clint(uintptr_t fdt);
+void query_uart(uintptr_t dtb);
+void query_uart16550(uintptr_t dtb);
+void query_htif(uintptr_t dtb);
+void query_finisher(uintptr_t dtb);
 
 // Remove information from FDT
 void filter_harts(uintptr_t fdt, long *disabled_hart_mask);

@@ -16,7 +16,6 @@
 #define FROMHOST_DATA(fromhost_value) ((uint64_t)(fromhost_value) << 16 >> 16)
 
 extern uintptr_t htif;
-void query_htif(uintptr_t dtb);
 void htif_console_putchar(uint8_t);
 int htif_console_getchar();
 void htif_poweroff() __attribute__((noreturn));
