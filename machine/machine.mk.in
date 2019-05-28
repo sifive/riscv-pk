@@ -22,6 +22,7 @@ machine_hdrs = \
 machine_c_srcs = \
   common.c \
   configure-fdt.c \
+  configure-hifive-unleashed.c \
   mtrap.c \
   minit.c \
   htif.c \

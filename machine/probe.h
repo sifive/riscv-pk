@@ -18,6 +18,7 @@ struct machine_config_method {
 };
 
 extern struct machine_config_method fdt_config_method;
+extern struct machine_config_method hifive_unleashed_config_method;
 
 struct machine_config_method *cm;
 
