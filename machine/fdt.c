@@ -626,6 +626,200 @@ void filter_harts(uintptr_t fdt, long *disabled_hart_mask)
   fdt_scan(fdt, &cb);
 }
 
+
+//////////////////////////////////////////// UART //////////////////////////////////////////////
+
+struct uart_scan
+{
+  int compat;
+  uint64_t reg;
+};
+
+static void uart_open(const struct fdt_scan_node *node, void *extra)
+{
+  struct uart_scan *scan = (struct uart_scan *)extra;
+  memset(scan, 0, sizeof(*scan));
+}
+
+static void uart_prop(const struct fdt_scan_prop *prop, void *extra)
+{
+  struct uart_scan *scan = (struct uart_scan *)extra;
+  if (!strcmp(prop->name, "compatible") && !strcmp((const char*)prop->value, "sifive,uart0")) {
+    scan->compat = 1;
+  } else if (!strcmp(prop->name, "reg")) {
+    fdt_get_address(prop->node->parent, prop->value, &scan->reg);
+  }
+}
+
+static void uart_done(const struct fdt_scan_node *node, void *extra)
+{
+  struct uart_scan *scan = (struct uart_scan *)extra;
+  if (!scan->compat || !scan->reg || uart) return;
+
+  // Enable Rx/Tx channels
+  uart = (void*)(uintptr_t)scan->reg;
+  uart[UART_REG_TXCTRL] = UART_TXEN;
+  uart[UART_REG_RXCTRL] = UART_RXEN;
+}
+
+void query_uart(uintptr_t fdt)
+{
+  struct fdt_cb cb;
+  struct uart_scan scan;
+
+  memset(&cb, 0, sizeof(cb));
+  cb.open = uart_open;
+  cb.prop = uart_prop;
+  cb.done = uart_done;
+  cb.extra = &scan;
+
+  fdt_scan(fdt, &cb);
+}
+
+//////////////////////////////////////////// UART16550 //////////////////////////////////////////
+
+struct uart16550_scan
+{
+  int compat;
+  uint64_t reg;
+};
+
+static void uart16550_open(const struct fdt_scan_node *node, void *extra)
+{
+  struct uart16550_scan *scan = (struct uart16550_scan *)extra;
+  memset(scan, 0, sizeof(*scan));
+}
+
+static void uart16550_prop(const struct fdt_scan_prop *prop, void *extra)
+{
+  struct uart16550_scan *scan = (struct uart16550_scan *)extra;
+  if (!strcmp(prop->name, "compatible") && !strcmp((const char*)prop->value, "ns16550a")) {
+    scan->compat = 1;
+  } else if (!strcmp(prop->name, "reg")) {
+    fdt_get_address(prop->node->parent, prop->value, &scan->reg);
+  }
+}
+
+static void uart16550_done(const struct fdt_scan_node *node, void *extra)
+{
+  struct uart16550_scan *scan = (struct uart16550_scan *)extra;
+  if (!scan->compat || !scan->reg || uart16550) return;
+
+  uart16550 = (void*)(uintptr_t)scan->reg;
+  // http://wiki.osdev.org/Serial_Ports
+  uart16550[1] = 0x00;    // Disable all interrupts
+  uart16550[3] = 0x80;    // Enable DLAB (set baud rate divisor)
+  uart16550[0] = 0x03;    // Set divisor to 3 (lo byte) 38400 baud
+  uart16550[1] = 0x00;    //                  (hi byte)
+  uart16550[3] = 0x03;    // 8 bits, no parity, one stop bit
+  uart16550[2] = 0xC7;    // Enable FIFO, clear them, with 14-byte threshold
+}
+
+void query_uart16550(uintptr_t fdt)
+{
+  struct fdt_cb cb;
+  struct uart16550_scan scan;
+
+  memset(&cb, 0, sizeof(cb));
+  cb.open = uart16550_open;
+  cb.prop = uart16550_prop;
+  cb.done = uart16550_done;
+  cb.extra = &scan;
+
+  fdt_scan(fdt, &cb);
+}
+
+//////////////////////////////////////////// HTIF ///////////////////////////////////////////////
+
+
+struct htif_scan
+{
+  int compat;
+};
+
+static void htif_open(const struct fdt_scan_node *node, void *extra)
+{
+  struct htif_scan *scan = (struct htif_scan *)extra;
+  memset(scan, 0, sizeof(*scan));
+}
+
+static void htif_prop(const struct fdt_scan_prop *prop, void *extra)
+{
+  struct htif_scan *scan = (struct htif_scan *)extra;
+  if (!strcmp(prop->name, "compatible") && !strcmp((const char*)prop->value, "ucb,htif0")) {
+    scan->compat = 1;
+  }
+}
+
+static void htif_done(const struct fdt_scan_node *node, void *extra)
+{
+  struct htif_scan *scan = (struct htif_scan *)extra;
+  if (!scan->compat) return;
+
+  htif = 1;
+}
+
+void query_htif(uintptr_t fdt)
+{
+  struct fdt_cb cb;
+  struct htif_scan scan;
+
+  memset(&cb, 0, sizeof(cb));
+  cb.open = htif_open;
+  cb.prop = htif_prop;
+  cb.done = htif_done;
+  cb.extra = &scan;
+
+  fdt_scan(fdt, &cb);
+}
+
+//////////////////////////////////////////// FINISHER ///////////////////////////////////////////
+
+
+struct finisher_scan
+{
+  int compat;
+  uint64_t reg;
+};
+
+static void finisher_open(const struct fdt_scan_node *node, void *extra)
+{
+  struct finisher_scan *scan = (struct finisher_scan *)extra;
+  memset(scan, 0, sizeof(*scan));
+}
+
+static void finisher_prop(const struct fdt_scan_prop *prop, void *extra)
+{
+  struct finisher_scan *scan = (struct finisher_scan *)extra;
+  if (!strcmp(prop->name, "compatible") && !strcmp((const char*)prop->value, "sifive,test0")) {
+    scan->compat = 1;
+  } else if (!strcmp(prop->name, "reg")) {
+    fdt_get_address(prop->node->parent, prop->value, &scan->reg);
+  }
+}
+
+static void finisher_done(const struct fdt_scan_node *node, void *extra)
+{
+  struct finisher_scan *scan = (struct finisher_scan *)extra;
+  if (!scan->compat || !scan->reg || finisher) return;
+  finisher = (uint32_t*)(uintptr_t)scan->reg;
+}
+
+void query_finisher(uintptr_t fdt)
+{
+  struct fdt_cb cb;
+  struct finisher_scan scan;
+
+  memset(&cb, 0, sizeof(cb));
+  cb.open = finisher_open;
+  cb.prop = finisher_prop;
+  cb.done = finisher_done;
+  cb.extra = &scan;
+
+  fdt_scan(fdt, &cb);
+}
+
+
 //////////////////////////////////////////// PRINT //////////////////////////////////////////////
 
 #ifdef PK_PRINT_DEVICE_TREE
