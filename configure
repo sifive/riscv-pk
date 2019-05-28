@@ -591,6 +591,7 @@ LIBOBJS
 subprojects_enabled
 subprojects
 BBL_DTB_FILE
+MACHINE_CONFIG_METHOD
 BBL_LOGO_FILE
 BBL_PAYLOAD
 install_subdir
@@ -677,6 +678,7 @@ enable_vm
 enable_logo
 with_payload
 with_logo
+with_config_method
 enable_fp_emulation
 enable_dtb
 with_dtb_path
@@ -1336,6 +1338,7 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-payload          Set ELF payload for bbl
   --with-logo             Specify a better logo
+  --with-config-method    Set machine configuration method for bbl
   --with-dtb-path         Specify path to the DTB
 
 Some influential environment variables:
@@ -4272,6 +4275,18 @@ else
   BBL_LOGO_FILE=riscv_logo.txt
 
 fi
+
+
+
+# Check whether --with-config-method was given.
+if test "${with_config_method+set}" = set; then :
+  withval=$with_config_method; MACHINE_CONFIG_METHOD=$with_config_method
+
+else
+  MACHINE_CONFIG_METHOD=fdt
+
+fi
+
 
 
 

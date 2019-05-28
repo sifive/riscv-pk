@@ -10,3 +10,8 @@ AC_ARG_WITH([payload], AS_HELP_STRING([--with-payload], [Set ELF payload for bbl
 AC_ARG_WITH([logo], AS_HELP_STRING([--with-logo], [Specify a better logo]),
   [AC_SUBST([BBL_LOGO_FILE], $with_logo, [Logo for bbl])],
   [AC_SUBST([BBL_LOGO_FILE], [riscv_logo.txt], [Logo for bbl])])
+
+AC_ARG_WITH([config-method], AS_HELP_STRING([--with-config-method], [Set machine configuration method for bbl]),
+  [AC_SUBST([MACHINE_CONFIG_METHOD], $with_config_method, [Config method for bbl])],
+  [AC_SUBST([MACHINE_CONFIG_METHOD], [fdt], [Config method for bbl])])
+

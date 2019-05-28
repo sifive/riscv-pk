@@ -146,6 +146,8 @@ void init_first_hart(uintptr_t hartid, uintptr_t dtb)
   my_dtb = (void *)dtb;
 #endif
 
+  cm = &MACHINE_CONFIG_METHOD;
+
   // Confirm console as early as possible
   cm->config_uart(&my_dtb);
   cm->config_uart16550(&my_dtb);
