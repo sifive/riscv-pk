@@ -55,10 +55,11 @@ static void mem_done(const struct fdt_scan_node *node, void *extra)
   assert (end == value);
 }
 
-void query_mem(uintptr_t fdt)
+static void query_mem(void *context)
 {
   struct fdt_cb cb;
   struct mem_scan scan;
+  uintptr_t fdt = (uintptr_t)context;
 
   memset(&cb, 0, sizeof(cb));
   cb.open = mem_open;
@@ -143,10 +144,11 @@ static int hart_close(const struct fdt_scan_node *node, void *extra)
   return 0;
 }
 
-void query_harts(uintptr_t fdt)
+static void query_harts(void *context)
 {
   struct fdt_cb cb;
   struct hart_scan scan;
+  uintptr_t fdt = (uintptr_t)context;
 
   memset(&cb, 0, sizeof(cb));
   memset(&scan, 0, sizeof(scan));
@@ -223,10 +225,11 @@ static void clint_done(const struct fdt_scan_node *node, void *extra)
   }
 }
 
-void query_clint(uintptr_t fdt)
+static void query_clint(void *context)
 {
   struct fdt_cb cb;
   struct clint_scan scan;
+  uintptr_t fdt = (uintptr_t)context;
 
   memset(&cb, 0, sizeof(cb));
   cb.open = clint_open;
@@ -325,10 +328,11 @@ static void plic_done(const struct fdt_scan_node *node, void *extra)
 #endif
 }
 
-void query_plic(uintptr_t fdt)
+static void query_plic(void *context)
 {
   struct fdt_cb cb;
   struct plic_scan scan;
+  uintptr_t fdt = (uintptr_t)context;
 
   memset(&cb, 0, sizeof(cb));
   cb.open = plic_open;
@@ -355,10 +359,11 @@ static void plic_redact(const struct fdt_scan_node *node, void *extra)
   }
 }
 
-void filter_plic(uintptr_t fdt)
+static void filter_plic(void *context)
 {
   struct fdt_cb cb;
   struct plic_scan scan;
+  uintptr_t fdt = (uintptr_t)context;
 
   memset(&cb, 0, sizeof(cb));
   cb.open = plic_open;
@@ -404,10 +409,11 @@ static int compat_close(const struct fdt_scan_node *node, void *extra)
   }
 }
 
-void filter_compat(uintptr_t fdt, const char *compat)
+static void filter_compat(void *context, const char *compat)
 {
   struct fdt_cb cb;
   struct compat_scan scan;
+  uintptr_t fdt = (uintptr_t)context;
 
   memset(&cb, 0, sizeof(cb));
   cb.open = compat_open;
@@ -483,10 +489,11 @@ static void hart_filter_done(const struct fdt_scan_node *node, void *extra)
   }
 }
 
-void filter_harts(uintptr_t fdt, long *disabled_hart_mask)
+static void filter_harts(void *context, long *disabled_hart_mask)
 {
   struct fdt_cb cb;
   struct hart_filter filter;
+  uintptr_t fdt = (uintptr_t)context;
 
   memset(&cb, 0, sizeof(cb));
   cb.open = hart_filter_open;
@@ -534,10 +541,11 @@ static void uart_done(const struct fdt_scan_node *node, void *extra)
   uart_enable_rx_tx();
 }
 
-void query_uart(uintptr_t fdt)
+static void query_uart(void *context)
 {
   struct fdt_cb cb;
   struct uart_scan scan;
+  uintptr_t fdt = (uintptr_t)context;
 
   memset(&cb, 0, sizeof(cb));
   cb.open = uart_open;
@@ -587,10 +595,11 @@ static void uart16550_done(const struct fdt_scan_node *node, void *extra)
   uart16550[2] = 0xC7;    // Enable FIFO, clear them, with 14-byte threshold
 }
 
-void query_uart16550(uintptr_t fdt)
+static void query_uart16550(void *context)
 {
   struct fdt_cb cb;
   struct uart16550_scan scan;
+  uintptr_t fdt = (uintptr_t)context;
 
   memset(&cb, 0, sizeof(cb));
   cb.open = uart16550_open;
@@ -631,10 +640,11 @@ static void htif_done(const struct fdt_scan_node *node, void *extra)
   htif = 1;
 }
 
-void query_htif(uintptr_t fdt)
+void query_htif(void *context)
 {
   struct fdt_cb cb;
   struct htif_scan scan;
+  uintptr_t fdt = (uintptr_t)context;
 
   memset(&cb, 0, sizeof(cb));
   cb.open = htif_open;
@@ -677,10 +687,11 @@ static void finisher_done(const struct fdt_scan_node *node, void *extra)
   finisher = (uint32_t*)(uintptr_t)scan->reg;
 }
 
-void query_finisher(uintptr_t fdt)
+void query_finisher(void *context)
 {
   struct fdt_cb cb;
   struct finisher_scan scan;
+  uintptr_t fdt = (uintptr_t)context;
 
   memset(&cb, 0, sizeof(cb));
   cb.open = finisher_open;
@@ -691,3 +702,18 @@ void query_finisher(uintptr_t fdt)
   fdt_scan(fdt, &cb);
 }
 
+//////////////////////////////////////////// CONFIG RECORD ///////////////////////////////////////////
+
+struct machine_config_method fdt_config_method = {
+   .config_mem = query_mem,
+   .config_harts = query_harts,
+   .config_clint = query_clint,
+   .config_plic = query_plic,
+   .config_uart = query_uart,
+   .config_uart16550 = query_uart16550,
+   .config_htif = query_htif,
+   .config_finisher = query_finisher,
+   .filter_harts = filter_harts,
+   .filter_plic = filter_plic,
+   .filter_compat = filter_compat,
+};

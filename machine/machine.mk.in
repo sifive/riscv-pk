@@ -19,7 +19,7 @@ machine_hdrs = \
   vm.h \
 
 machine_c_srcs = \
-  fdt.c \
+  configure-fdt.c \
   mtrap.c \
   minit.c \
   htif.c \

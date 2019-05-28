@@ -1,20 +1,25 @@
 #ifndef PROBE_H
 #define PROBE_H
 
-// Setup memory+clint+plic
-void query_mem(uintptr_t fdt);
-void query_harts(uintptr_t fdt);
-void query_plic(uintptr_t fdt);
-void query_clint(uintptr_t fdt);
-void query_uart(uintptr_t dtb);
-void query_uart16550(uintptr_t dtb);
-void query_htif(uintptr_t dtb);
-void query_finisher(uintptr_t dtb);
+// TODO: use a union instead?
 
-// Remove information from FDT
-void filter_harts(uintptr_t fdt, long *disabled_hart_mask);
-void filter_plic(uintptr_t fdt);
-void filter_compat(uintptr_t fdt, const char *compat);
+struct machine_config_method {
+  void (*config_mem)(void *context);
+  void (*config_harts)(void *context);
+  void (*config_plic)(void *context);
+  void (*config_clint)(void *context);
+  void (*config_uart)(void *context);
+  void (*config_uart16550)(void *context);
+  void (*config_htif)(void *context);
+  void (*config_finisher)(void *context);
+  void (*filter_harts)(void *context, long *disabled_hart_mask);
+  void (*filter_plic)(void *context);
+  void (*filter_compat)(void *context, const char *compat);
+};
+
+extern struct machine_config_method fdt_config_method;
+
+struct machine_config_method *cm;
 
 // The hartids of available harts
 extern uint64_t hart_mask;

@@ -142,26 +142,26 @@ extern void *my_dtb;
 
 void init_first_hart(uintptr_t hartid, uintptr_t dtb)
 {
-#ifdef PK_ENABLE_DTB
-  dtb = (uintptr_t)&my_dtb;
+#ifndef PK_ENABLE_DTB
+  my_dtb = (void *)dtb;
 #endif
 
   // Confirm console as early as possible
-  query_uart(dtb);
-  query_uart16550(dtb);
-  query_htif(dtb);
+  cm->config_uart(&my_dtb);
+  cm->config_uart16550(&my_dtb);
+  cm->config_htif(&my_dtb);
   printm("bbl loader\r\n");
 
   hart_init();
   hls_init(0); // this might get called again from parse_config_string
 
   // Find the power button early as well so die() works
-  query_finisher(dtb);
+  cm->config_finisher(&my_dtb);
 
-  query_mem(dtb);
-  query_harts(dtb);
-  query_clint(dtb);
-  query_plic(dtb);
+  cm->config_mem(&my_dtb);
+  cm->config_harts(&my_dtb);
+  cm->config_clint(&my_dtb);
+  cm->config_plic(&my_dtb);
 
   wake_harts();
 
@@ -169,14 +169,14 @@ void init_first_hart(uintptr_t hartid, uintptr_t dtb)
   hart_plic_init();
   //prci_test();
   memory_init();
-  boot_loader(dtb);
+  boot_loader((uintptr_t)&my_dtb);
 }
 
 void init_other_hart(uintptr_t hartid, uintptr_t dtb)
 {
   hart_init();
   hart_plic_init();
-  boot_other_hart(dtb);
+  boot_other_hart((uintptr_t)&my_dtb);
 }
 
 void enter_supervisor_mode(void (*fn)(uintptr_t), uintptr_t arg0, uintptr_t arg1)

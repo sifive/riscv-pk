@@ -21,16 +21,16 @@ static uintptr_t dtb_output()
 
 static void filter_dtb(uintptr_t source)
 {
-  uintptr_t dest = dtb_output();
+  void *dest = (void *)dtb_output();
   uint32_t size = fdt_size(source);
-  memcpy((void*)dest, (void*)source, size);
+  memcpy(dest, (void*)source, size);
   printm("Relocated DTB from %lx to %lx\n", source, dest);
 
   // Remove information from the chained FDT
-  filter_harts(dest, &disabled_hart_mask);
-  filter_plic(dest);
-  filter_compat(dest, "riscv,clint0");
-  filter_compat(dest, "riscv,debug-013");
+  cm->filter_harts(dest, &disabled_hart_mask);
+  cm->filter_plic(dest);
+  cm->filter_compat(dest, "riscv,clint0");
+  cm->filter_compat(dest, "riscv,debug-013");
 }
 
 void boot_other_hart(uintptr_t unused __attribute__((unused)))
