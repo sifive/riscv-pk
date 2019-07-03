@@ -207,13 +207,13 @@
 			interrupts = <18>;
 			reg = <0x0 0x10050000 0x0 0x1000>;
 			reg-names = "control";
-			status = "disabled";
+			status = "okay";
 
 			mmc@0 {
 				compatible = "mmc-spi-slot";
 				disable-wp;
 				reg = <0x0>;
-				spi-max-frequency = <18750000>;
+				spi-max-frequency = <9000000>;
 				voltage-ranges = <0xce4 0xce4>;
 			};
 		};
