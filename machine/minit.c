@@ -174,7 +174,6 @@ void init_first_hart(uintptr_t hartid, uintptr_t dtb)
   query_mem(dtb);
   query_soc(dtb);
   query_plic(dtb);
-  query_chosen(dtb);
 
   wake_harts();
 
