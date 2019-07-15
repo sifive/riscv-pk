@@ -324,7 +324,7 @@ static void plic_done(const struct fdt_scan_node *node, void *extra)
   scan->done = 1;
   plic_priorities = (uint32_t*)(uintptr_t)scan->reg;
 
-  int hart = 0;
+  int hart = -1;
   for (int index = 0; end - value > 0; ++index) {
     uint32_t phandle = bswap(value[0]);
     uint32_t cpu_int = bswap(value[1]);
@@ -338,9 +338,9 @@ static void plic_done(const struct fdt_scan_node *node, void *extra)
         hls->plic_s_thresh = (uint32_t*) ((uintptr_t)scan->reg + HART_BASE   + HART_SIZE   * index);
       } else {
         printm("PLIC wired hart %d to wrong interrupt %d\n", hart, cpu_int);
+        hart += 1;
       }
     }
-    hart += 1;
     value += 2;
   }
 #if 0
