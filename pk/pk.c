@@ -1,3 +1,5 @@
+// See LICENSE for license details.
+
 #include "pk.h"
 #include "mmap.h"
 #include "boot.h"
@@ -27,7 +29,7 @@ static void handle_option(const char* s)
   }
 }
 
-#define MAX_ARGS 64
+#define MAX_ARGS 256
 typedef union {
   uint64_t buf[MAX_ARGS];
   char* argv[MAX_ARGS];
@@ -36,6 +38,9 @@ typedef union {
 static size_t parse_args(arg_buf* args)
 {
   long r = frontend_syscall(SYS_getmainvars, va2pa(args), sizeof(*args), 0, 0, 0, 0, 0);
+  if (r != 0)
+    panic("args must not exceed %d bytes", (int)sizeof(arg_buf));
+
   kassert(r == 0);
   uint64_t* pk_argv = &args->buf[1];
   // pk_argv[0] is the proxy kernel itself.  skip it and any flags.
@@ -161,7 +166,7 @@ void boot_loader(uintptr_t dtb)
   write_csr(stvec, &trap_entry);
   write_csr(sscratch, 0);
   write_csr(sie, 0);
-  set_csr(sstatus, SSTATUS_SUM);
+  set_csr(sstatus, SSTATUS_SUM | SSTATUS_FS);
 
   file_init();
   enter_supervisor_mode(rest_of_boot_loader, pk_vm_init(), 0);

@@ -1,44 +1,47 @@
+// See LICENSE for license details.
+
 #include "fp_emulation.h"
 #include "unprivileged_memory.h"
 #include "softfloat.h"
+#include "internals.h"
 #include "config.h"
 
 DECLARE_EMULATION_FUNC(emulate_fp)
 {
   asm (".pushsection .rodata\n"
        "fp_emulation_table:\n"
-       "  .word emulate_fadd\n"
-       "  .word emulate_fsub\n"
-       "  .word emulate_fmul\n"
-       "  .word emulate_fdiv\n"
-       "  .word emulate_fsgnj\n"
-       "  .word emulate_fmin\n"
-       "  .word truly_illegal_insn\n"
-       "  .word truly_illegal_insn\n"
-       "  .word emulate_fcvt_ff\n"
-       "  .word truly_illegal_insn\n"
-       "  .word truly_illegal_insn\n"
-       "  .word emulate_fsqrt\n"
-       "  .word truly_illegal_insn\n"
-       "  .word truly_illegal_insn\n"
-       "  .word truly_illegal_insn\n"
-       "  .word truly_illegal_insn\n"
-       "  .word truly_illegal_insn\n"
-       "  .word truly_illegal_insn\n"
-       "  .word truly_illegal_insn\n"
-       "  .word truly_illegal_insn\n"
-       "  .word emulate_fcmp\n"
-       "  .word truly_illegal_insn\n"
-       "  .word truly_illegal_insn\n"
-       "  .word truly_illegal_insn\n"
-       "  .word emulate_fcvt_if\n"
-       "  .word truly_illegal_insn\n"
-       "  .word emulate_fcvt_fi\n"
-       "  .word truly_illegal_insn\n"
-       "  .word emulate_fmv_if\n"
-       "  .word truly_illegal_insn\n"
-       "  .word emulate_fmv_fi\n"
-       "  .word truly_illegal_insn\n"
+       "  .word emulate_fadd - fp_emulation_table\n"
+       "  .word emulate_fsub - fp_emulation_table\n"
+       "  .word emulate_fmul - fp_emulation_table\n"
+       "  .word emulate_fdiv - fp_emulation_table\n"
+       "  .word emulate_fsgnj - fp_emulation_table\n"
+       "  .word emulate_fmin - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word emulate_fcvt_ff - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word emulate_fsqrt - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word emulate_fcmp - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word emulate_fcvt_if - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word emulate_fcvt_fi - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word emulate_fmv_if - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
+       "  .word emulate_fmv_fi - fp_emulation_table\n"
+       "  .word truly_illegal_insn - fp_emulation_table\n"
        "  .popsection");
 
   // if FPU is disabled, punt back to the OS
@@ -46,23 +49,26 @@ DECLARE_EMULATION_FUNC(emulate_fp)
     return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
 
   extern uint32_t fp_emulation_table[];
-  uint32_t* pf = (void*)fp_emulation_table + ((insn >> 25) & 0x7c);
-  emulation_func f = (emulation_func)(uintptr_t)*pf;
+  int32_t* pf = (void*)fp_emulation_table + ((insn >> 25) & 0x7c);
+  emulation_func f = (emulation_func)((void*)fp_emulation_table + *pf);
 
   SETUP_STATIC_ROUNDING(insn);
   return f(regs, mcause, mepc, mstatus, insn);
 }
+
+#define f32(x) ((float32_t){ .v = x })
+#define f64(x) ((float64_t){ .v = x })
 
 void emulate_any_fadd(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc, uintptr_t mstatus, insn_t insn, int32_t neg_b)
 {
   if (GET_PRECISION(insn) == PRECISION_S) {
     uint32_t rs1 = GET_F32_RS1(insn, regs);
     uint32_t rs2 = GET_F32_RS2(insn, regs) ^ neg_b;
-    SET_F32_RD(insn, regs, f32_add(rs1, rs2));
+    SET_F32_RD(insn, regs, f32_add(f32(rs1), f32(rs2)).v);
   } else if (GET_PRECISION(insn) == PRECISION_D) {
     uint64_t rs1 = GET_F64_RS1(insn, regs);
     uint64_t rs2 = GET_F64_RS2(insn, regs) ^ ((uint64_t)neg_b << 32);
-    SET_F64_RD(insn, regs, f64_add(rs1, rs2));
+    SET_F64_RD(insn, regs, f64_add(f64(rs1), f64(rs2)).v);
   } else {
     return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
   }
@@ -83,11 +89,11 @@ DECLARE_EMULATION_FUNC(emulate_fmul)
   if (GET_PRECISION(insn) == PRECISION_S) {
     uint32_t rs1 = GET_F32_RS1(insn, regs);
     uint32_t rs2 = GET_F32_RS2(insn, regs);
-    SET_F32_RD(insn, regs, f32_mul(rs1, rs2));
+    SET_F32_RD(insn, regs, f32_mul(f32(rs1), f32(rs2)).v);
   } else if (GET_PRECISION(insn) == PRECISION_D) {
     uint64_t rs1 = GET_F64_RS1(insn, regs);
     uint64_t rs2 = GET_F64_RS2(insn, regs);
-    SET_F64_RD(insn, regs, f64_mul(rs1, rs2));
+    SET_F64_RD(insn, regs, f64_mul(f64(rs1), f64(rs2)).v);
   } else {
     return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
   }
@@ -98,11 +104,11 @@ DECLARE_EMULATION_FUNC(emulate_fdiv)
   if (GET_PRECISION(insn) == PRECISION_S) {
     uint32_t rs1 = GET_F32_RS1(insn, regs);
     uint32_t rs2 = GET_F32_RS2(insn, regs);
-    SET_F32_RD(insn, regs, f32_div(rs1, rs2));
+    SET_F32_RD(insn, regs, f32_div(f32(rs1), f32(rs2)).v);
   } else if (GET_PRECISION(insn) == PRECISION_D) {
     uint64_t rs1 = GET_F64_RS1(insn, regs);
     uint64_t rs2 = GET_F64_RS2(insn, regs);
-    SET_F64_RD(insn, regs, f64_div(rs1, rs2));
+    SET_F64_RD(insn, regs, f64_div(f64(rs1), f64(rs2)).v);
   } else {
     return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
   }
@@ -114,9 +120,9 @@ DECLARE_EMULATION_FUNC(emulate_fsqrt)
     return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
 
   if (GET_PRECISION(insn) == PRECISION_S) {
-    SET_F32_RD(insn, regs, f32_sqrt(GET_F32_RS1(insn, regs)));
+    SET_F32_RD(insn, regs, f32_sqrt(f32(GET_F32_RS1(insn, regs))).v);
   } else if (GET_PRECISION(insn) == PRECISION_D) {
-    SET_F64_RD(insn, regs, f64_sqrt(GET_F64_RS1(insn, regs)));
+    SET_F64_RD(insn, regs, f64_sqrt(f64(GET_F64_RS1(insn, regs))).v);
   } else {
     return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
   }
@@ -159,14 +165,14 @@ DECLARE_EMULATION_FUNC(emulate_fmin)
     uint32_t rs2 = GET_F32_RS2(insn, regs);
     uint32_t arg1 = rm ? rs2 : rs1;
     uint32_t arg2 = rm ? rs1 : rs2;
-    int use_rs1 = f32_lt_quiet(arg1, arg2) || isNaNF32UI(rs2);
+    int use_rs1 = f32_lt_quiet(f32(arg1), f32(arg2)) || isNaNF32UI(rs2);
     SET_F32_RD(insn, regs, use_rs1 ? rs1 : rs2);
   } else if (GET_PRECISION(insn) == PRECISION_D) {
     uint64_t rs1 = GET_F64_RS1(insn, regs);
     uint64_t rs2 = GET_F64_RS2(insn, regs);
     uint64_t arg1 = rm ? rs2 : rs1;
     uint64_t arg2 = rm ? rs1 : rs2;
-    int use_rs1 = f64_lt_quiet(arg1, arg2) || isNaNF64UI(rs2);
+    int use_rs1 = f64_lt_quiet(f64(arg1), f64(arg2)) || isNaNF64UI(rs2);
     SET_F64_RD(insn, regs, use_rs1 ? rs1 : rs2);
   } else {
     return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
@@ -179,11 +185,11 @@ DECLARE_EMULATION_FUNC(emulate_fcvt_ff)
   if (GET_PRECISION(insn) == PRECISION_S) {
     if (rs2_num != 1)
       return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
-    SET_F32_RD(insn, regs, f64_to_f32(GET_F64_RS1(insn, regs)));
+    SET_F32_RD(insn, regs, f64_to_f32(f64(GET_F64_RS1(insn, regs))).v);
   } else if (GET_PRECISION(insn) == PRECISION_D) {
     if (rs2_num != 0)
       return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
-    SET_F64_RD(insn, regs, f32_to_f64(GET_F32_RS1(insn, regs)));
+    SET_F64_RD(insn, regs, f32_to_f64(f32(GET_F32_RS1(insn, regs))).v);
   } else {
     return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
   }
@@ -217,12 +223,12 @@ DECLARE_EMULATION_FUNC(emulate_fcvt_fi)
       return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
   }
 
-  uint64_t float64 = ui64_to_f64(uint_val);
+  uint64_t float64 = ui64_to_f64(uint_val).v;
   if (negative)
     float64 ^= INT64_MIN;
 
   if (GET_PRECISION(insn) == PRECISION_S)
-    SET_F32_RD(insn, regs, f64_to_f32(float64));
+    SET_F32_RD(insn, regs, f64_to_f32(f64(float64)).v);
   else
     SET_F64_RD(insn, regs, float64);
 }
@@ -240,7 +246,7 @@ DECLARE_EMULATION_FUNC(emulate_fcvt_if)
 
   int64_t float64;
   if (GET_PRECISION(insn) == PRECISION_S)
-    float64 = f32_to_f64(GET_F32_RS1(insn, regs));
+    float64 = f32_to_f64(f32(GET_F32_RS1(insn, regs))).v;
   else if (GET_PRECISION(insn) == PRECISION_D)
     float64 = GET_F64_RS1(insn, regs);
   else
@@ -251,7 +257,7 @@ DECLARE_EMULATION_FUNC(emulate_fcvt_if)
     negative = 1;
     float64 ^= INT64_MIN;
   }
-  uint64_t uint_val = f64_to_ui64(float64, softfloat_roundingMode, true);
+  uint64_t uint_val = f64_to_ui64(f64(float64), softfloat_roundingMode, true);
   uint64_t result, limit, limit_result;
 
   switch (rs2_num)
@@ -316,17 +322,17 @@ DECLARE_EMULATION_FUNC(emulate_fcmp)
     uint32_t rs1 = GET_F32_RS1(insn, regs);
     uint32_t rs2 = GET_F32_RS2(insn, regs);
     if (rm != 1)
-      result = f32_eq(rs1, rs2);
+      result = f32_eq(f32(rs1), f32(rs2));
     if (rm == 1 || (rm == 0 && !result))
-      result = f32_lt(rs1, rs2);
+      result = f32_lt(f32(rs1), f32(rs2));
     goto success;
   } else if (GET_PRECISION(insn) == PRECISION_D) {
     uint64_t rs1 = GET_F64_RS1(insn, regs);
     uint64_t rs2 = GET_F64_RS2(insn, regs);
     if (rm != 1)
-      result = f64_eq(rs1, rs2);
+      result = f64_eq(f64(rs1), f64(rs2));
     if (rm == 1 || (rm == 0 && !result))
-      result = f64_lt(rs1, rs2);
+      result = f64_lt(f64(rs1), f64(rs2));
     goto success;
   }
   return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
@@ -345,14 +351,14 @@ DECLARE_EMULATION_FUNC(emulate_fmv_if)
     result = GET_F32_RS1(insn, regs);
     switch (GET_RM(insn)) {
       case GET_RM(MATCH_FMV_X_W): break;
-      case GET_RM(MATCH_FCLASS_S): result = f32_classify(result); break;
+      case GET_RM(MATCH_FCLASS_S): result = f32_classify(f32(result)); break;
       default: return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
     }
   } else if (GET_PRECISION(insn) == PRECISION_D) {
     result = GET_F64_RS1(insn, regs);
     switch (GET_RM(insn)) {
       case GET_RM(MATCH_FMV_X_D): break;
-      case GET_RM(MATCH_FCLASS_D): result = f64_classify(result); break;
+      case GET_RM(MATCH_FCLASS_D): result = f64_classify(f64(result)); break;
       default: return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
     }
   } else {
@@ -383,18 +389,19 @@ DECLARE_EMULATION_FUNC(emulate_fmadd)
   if (unlikely((mstatus & MSTATUS_FS) == 0))
     return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
 
-  int op = (insn >> 2) & 3;
+  bool negA = (insn >> 3) & 1;
+  bool negC = (insn >> 2) & 1;
   SETUP_STATIC_ROUNDING(insn);
   if (GET_PRECISION(insn) == PRECISION_S) {
-    uint32_t rs1 = GET_F32_RS1(insn, regs);
+    uint32_t rs1 = GET_F32_RS1(insn, regs) ^ (negA ? INT32_MIN : 0);
     uint32_t rs2 = GET_F32_RS2(insn, regs);
-    uint32_t rs3 = GET_F32_RS3(insn, regs);
-    SET_F32_RD(insn, regs, softfloat_mulAddF32(op, rs1, rs2, rs3));
+    uint32_t rs3 = GET_F32_RS3(insn, regs) ^ (negC ? INT32_MIN : 0);
+    SET_F32_RD(insn, regs, softfloat_mulAddF32(rs1, rs2, rs3, 0).v);
   } else if (GET_PRECISION(insn) == PRECISION_D) {
-    uint64_t rs1 = GET_F64_RS1(insn, regs);
+    uint64_t rs1 = GET_F64_RS1(insn, regs) ^ (negA ? INT64_MIN : 0);
     uint64_t rs2 = GET_F64_RS2(insn, regs);
-    uint64_t rs3 = GET_F64_RS3(insn, regs);
-    SET_F64_RD(insn, regs, softfloat_mulAddF64(op, rs1, rs2, rs3));
+    uint64_t rs3 = GET_F64_RS3(insn, regs) ^ (negC ? INT64_MIN : 0);
+    SET_F64_RD(insn, regs, softfloat_mulAddF64(rs1, rs2, rs3, 0).v);
   } else {
     return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
   }

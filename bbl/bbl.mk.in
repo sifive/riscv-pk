@@ -1,3 +1,5 @@
+# See LICENSE for license details.
+
 bbl_subproject_deps = \
 	util \
   softfloat \
@@ -17,12 +19,17 @@ bbl_asm_srcs = \
 payload.o: bbl_payload
 
 bbl_payload: $(BBL_PAYLOAD)
-	if $(READELF) -h $< 2> /dev/null > /dev/null; then $(OBJCOPY) -O binary $< $@; else cp $< $@; fi
+	if $(READELF) -h $< 2> /dev/null > /dev/null; then $(OBJCOPY) -O binary --set-section-flags .bss=alloc,load,contents $< $@; else cp $< $@; fi
 
 raw_logo.o: bbl_logo_file
 
+ifeq (@BBL_ENABLE_LOGO@,1)
 bbl_logo_file: @BBL_LOGO_FILE@
 	cat $^ | sed 's/$$/\r/' > $@
+else
+bbl_logo_file:
+	touch $@
+endif
 
 bbl_test_srcs =
 

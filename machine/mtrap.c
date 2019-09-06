@@ -1,3 +1,5 @@
+// See LICENSE for license details.
+
 #include "mtrap.h"
 #include "mcall.h"
 #include "htif.h"
@@ -29,17 +31,6 @@ static uintptr_t mcall_console_putchar(uint8_t ch)
     htif_console_putchar(ch);
   }
   return 0;
-}
-
-void poweroff(uint16_t code)
-{
-  printm("Power off\n");
-  finisher_exit(code);
-  if (htif) {
-    htif_poweroff();
-  } else {
-    while (1) { asm volatile ("#noop\n"); }
-  }
 }
 
 void putstring(const char* s)
@@ -203,14 +194,30 @@ void pmp_trap(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
   redirect_trap(mepc, read_csr(mstatus), read_csr(mbadaddr));
 }
 
-static void machine_page_fault(uintptr_t* regs, uintptr_t dummy, uintptr_t mepc)
+static void machine_page_fault(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
 {
   // MPRV=1 iff this trap occurred while emulating an instruction on behalf
   // of a lower privilege level. In that case, a2=epc and a3=mstatus.
+  // a1 holds MPRV if emulating a load or store, or MPRV | MXR if loading
+  // an instruction from memory.  In the latter case, we should report an
+  // instruction fault instead of a load fault.
   if (read_csr(mstatus) & MSTATUS_MPRV) {
+    if (regs[11] == (MSTATUS_MPRV | MSTATUS_MXR)) {
+      if (mcause == CAUSE_LOAD_PAGE_FAULT)
+        write_csr(mcause, CAUSE_FETCH_PAGE_FAULT);
+      else if (mcause == CAUSE_LOAD_ACCESS)
+        write_csr(mcause, CAUSE_FETCH_ACCESS);
+      else
+        goto fail;
+    } else if (regs[11] != MSTATUS_MPRV) {
+      goto fail;
+    }
+
     return redirect_trap(regs[12], regs[13], read_csr(mbadaddr));
   }
-  bad_trap(regs, dummy, mepc);
+
+fail:
+  bad_trap(regs, mcause, mepc);
 }
 
 void trap_from_machine_mode(uintptr_t* regs, uintptr_t dummy, uintptr_t mepc)
@@ -224,8 +231,20 @@ void trap_from_machine_mode(uintptr_t* regs, uintptr_t dummy, uintptr_t mepc)
     case CAUSE_FETCH_ACCESS:
     case CAUSE_LOAD_ACCESS:
     case CAUSE_STORE_ACCESS:
-      return machine_page_fault(regs, dummy, mepc);
+      return machine_page_fault(regs, mcause, mepc);
     default:
       bad_trap(regs, dummy, mepc);
+  }
+}
+
+void poweroff(uint16_t code)
+{
+  printm("Power off\r\n");
+  finisher_exit(code);
+  if (htif) {
+    htif_poweroff();
+  } else {
+    send_ipi_many(0, IPI_HALT);
+    while (1) { asm volatile ("wfi\n"); }
   }
 }

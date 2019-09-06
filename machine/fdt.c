@@ -1,3 +1,5 @@
+// See LICENSE for license details.
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -122,6 +124,11 @@ const uint32_t *fdt_get_size(const struct fdt_scan_node *node, const uint32_t *v
   for (int cells = node->size_cells; cells > 0; --cells)
     *result = (*result << 32) + bswap(*value++);
   return value;
+}
+
+uint32_t fdt_get_value(const struct fdt_scan_prop *prop, uint32_t index)
+{
+  return bswap(prop->value[index]);
 }
 
 int fdt_string_list_index(const struct fdt_scan_prop *prop, const char *str)
@@ -546,6 +553,63 @@ void filter_compat(uintptr_t fdt, const char *compat)
   scan.depth = 0;
   scan.kill = 999;
   fdt_scan(fdt, &cb);
+}
+
+//////////////////////////////////////////// CHOSEN SCAN ////////////////////////////////////////
+
+struct chosen_scan {
+  const struct fdt_scan_node *chosen;
+  void* kernel_start;
+  void* kernel_end;
+};
+
+static void chosen_open(const struct fdt_scan_node *node, void *extra)
+{
+  struct chosen_scan *scan = (struct chosen_scan *)extra;
+  if (!strcmp(node->name, "chosen")) {
+    scan->chosen = node;
+  }
+}
+
+static int chosen_close(const struct fdt_scan_node *node, void *extra)
+{
+  struct chosen_scan *scan = (struct chosen_scan *)extra;
+  if (scan->chosen && scan->chosen == node) {
+    scan->chosen = NULL;
+  }
+  return 0;
+}
+
+static void chosen_prop(const struct fdt_scan_prop *prop, void *extra)
+{
+  struct chosen_scan *scan = (struct chosen_scan *)extra;
+  uint64_t val;
+  if (!scan->chosen) return;
+  if (!strcmp(prop->name, "riscv,kernel-start")) {
+    fdt_get_address(prop->node->parent, prop->value, &val);
+    scan->kernel_start = (void*)(uintptr_t)val;
+  } else if (!strcmp(prop->name, "riscv,kernel-end")) {
+    fdt_get_address(prop->node->parent, prop->value, &val);
+    scan->kernel_end = (void*)(uintptr_t)val;
+  }
+}
+
+void query_chosen(uintptr_t fdt)
+{
+  struct fdt_cb cb;
+  struct chosen_scan chosen;
+
+  memset(&cb, 0, sizeof(cb));
+  cb.open = chosen_open;
+  cb.close = chosen_close;
+  cb.prop = chosen_prop;
+
+  memset(&chosen, 0, sizeof(chosen));
+  cb.extra = &chosen;
+
+  fdt_scan(fdt, &cb);
+  kernel_start = chosen.kernel_start;
+  kernel_end = chosen.kernel_end;
 }
 
 //////////////////////////////////////////// HART FILTER ////////////////////////////////////////

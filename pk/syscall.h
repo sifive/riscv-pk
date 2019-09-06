@@ -52,6 +52,7 @@
 #define SYS_clock_gettime 113
 #define SYS_set_tid_address 96
 #define SYS_set_robust_list 99
+#define SYS_madvise 233
 
 #define OLD_SYSCALL_THRESHOLD 1024
 #define SYS_open 1024
@@ -67,6 +68,7 @@
 #define ERR_PTR(x) ((void*)(long)(x))
 #define PTR_ERR(x) ((long)(x))
 
+#undef AT_FDCWD
 #define AT_FDCWD -100
 
 long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, unsigned long n);

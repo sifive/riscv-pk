@@ -1,3 +1,5 @@
+// See LICENSE for license details.
+
 #include "bbl.h"
 #include "mtrap.h"
 #include "atomic.h"
@@ -7,13 +9,21 @@
 #include "fdt.h"
 #include <string.h>
 
+extern char _payload_start, _payload_end; /* internal payload */
 static const void* entry_point;
 long disabled_hart_mask;
 
 static uintptr_t dtb_output()
 {
-  extern char _payload_end;
-  uintptr_t end = (uintptr_t) &_payload_end;
+  /*
+   * Place DTB after the payload, either the internal payload or a
+   * preloaded external payload specified in device-tree, if present.
+   *
+   * Note: linux kernel calls __va(dtb) to get the device-tree virtual
+   * address. The kernel's virtual mapping begins at its load address,
+   * thus mandating device-tree is in physical memory after the kernel.
+   */
+  uintptr_t end = kernel_end ? (uintptr_t)kernel_end : (uintptr_t)&_payload_end;
   return (end + MEGAPAGE_SIZE - 1) / MEGAPAGE_SIZE * MEGAPAGE_SIZE;
 }
 
@@ -28,6 +38,52 @@ static void filter_dtb(uintptr_t source)
   filter_plic(dest);
   filter_compat(dest, "riscv,clint0");
   filter_compat(dest, "riscv,debug-013");
+}
+
+static void protect_memory(void)
+{
+  // Check to see if up to four PMP registers are implemented.
+  // Ignore the illegal-instruction trap if PMPs aren't supported.
+  uintptr_t a0 = 0, a1 = 0, a2 = 0, a3 = 0, tmp, cfg;
+  asm volatile ("la %[tmp], 1f\n\t"
+                "csrrw %[tmp], mtvec, %[tmp]\n\t"
+                "csrw pmpaddr0, %[m1]\n\t"
+                "csrr %[a0], pmpaddr0\n\t"
+                "csrw pmpaddr1, %[m1]\n\t"
+                "csrr %[a1], pmpaddr1\n\t"
+                "csrw pmpaddr2, %[m1]\n\t"
+                "csrr %[a2], pmpaddr2\n\t"
+                "csrw pmpaddr3, %[m1]\n\t"
+                "csrr %[a3], pmpaddr3\n\t"
+                ".align 2\n\t"
+                "1: csrw mtvec, %[tmp]"
+                : [tmp] "=&r" (tmp),
+                  [a0] "+r" (a0), [a1] "+r" (a1), [a2] "+r" (a2), [a3] "+r" (a3)
+                : [m1] "r" (-1UL));
+
+  // We need at least four PMP registers to protect M-mode from S-mode.
+  if (!(a0 & a1 & a2 & a3))
+    return setup_pmp();
+
+  // Prevent S-mode access to our part of memory.
+  extern char _ftext, _end;
+  a0 = (uintptr_t)&_ftext >> PMP_SHIFT;
+  a1 = (uintptr_t)&_end >> PMP_SHIFT;
+  cfg = PMP_TOR << 8;
+  // Give S-mode free rein of everything else.
+  a2 = -1;
+  cfg |= (PMP_NAPOT | PMP_R | PMP_W | PMP_X) << 16;
+  // No use for PMP 3 just yet.
+  a3 = 0;
+
+  // Plug it all in.
+  asm volatile ("csrw pmpaddr0, %[a0]\n\t"
+                "csrw pmpaddr1, %[a1]\n\t"
+                "csrw pmpaddr2, %[a2]\n\t"
+                "csrw pmpaddr3, %[a3]\n\t"
+                "csrw pmpcfg0, %[cfg]"
+                :: [a0] "r" (a0), [a1] "r" (a1), [a2] "r" (a2), [a3] "r" (a3),
+                   [cfg] "r" (cfg));
 }
 
 void boot_other_hart(uintptr_t unused __attribute__((unused)))
@@ -48,12 +104,16 @@ void boot_other_hart(uintptr_t unused __attribute__((unused)))
     }
   }
 
+#ifdef BBL_BOOT_MACHINE
+  enter_machine_mode(entry, hartid, dtb_output());
+#else /* Run bbl in supervisor mode */
+  protect_memory();
   enter_supervisor_mode(entry, hartid, dtb_output());
+#endif
 }
 
 void boot_loader(uintptr_t dtb)
 {
-  extern char _payload_start;
   filter_dtb(dtb);
 #ifdef PK_ENABLE_LOGO
   print_logo();
@@ -62,6 +122,7 @@ void boot_loader(uintptr_t dtb)
   fdt_print(dtb_output());
 #endif
   mb();
-  entry_point = &_payload_start;
+  /* Use optional FDT preloaded external payload if present */
+  entry_point = kernel_start ? kernel_start : &_payload_start;
   boot_other_hart(0);
 }

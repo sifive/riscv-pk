@@ -2,28 +2,33 @@
 
 #include "mtrap.h"
 #include "bits.h"
+#include "config.h"
 
   .data
   .align 6
 trap_table:
 #define BAD_TRAP_VECTOR 0
-  .word bad_trap
-  .word pmp_trap
-  .word illegal_insn_trap
-  .word bad_trap
-  .word misaligned_load_trap
-  .word pmp_trap
-  .word misaligned_store_trap
-  .word pmp_trap
-  .word bad_trap
-  .word mcall_trap
-  .word bad_trap
-  .word bad_trap
-  .word bad_trap
+  .dc.a bad_trap
+  .dc.a pmp_trap
+  .dc.a illegal_insn_trap
+  .dc.a bad_trap
+  .dc.a misaligned_load_trap
+  .dc.a pmp_trap
+  .dc.a misaligned_store_trap
+  .dc.a pmp_trap
+  .dc.a bad_trap
+  .dc.a mcall_trap
+  .dc.a bad_trap
+#ifdef BBL_BOOT_MACHINE
+  .dc.a mcall_trap
+#else
+  .dc.a bad_trap
+#endif /* BBL_BOOT_MACHINE */
+  .dc.a bad_trap
 #define TRAP_FROM_MACHINE_MODE_VECTOR 13
-  .word __trap_from_machine_mode
-  .word bad_trap
-  .word bad_trap
+  .dc.a __trap_from_machine_mode
+  .dc.a bad_trap
+  .dc.a bad_trap
 
   .option norvc
   .section .text.init,"ax",@progbits
@@ -48,7 +53,7 @@ trap_vector:
   li a0, IRQ_M_TIMER * 2
   bne a0, a1, 1f
 
-  # Yes.  Simply clear MSIE and raise SSIP.
+  # Yes.  Simply clear MTIE and raise STIP.
   li a0, MIP_MTIP
   csrc mie, a0
   li a0, MIP_STIP
@@ -76,8 +81,8 @@ trap_vector:
   addi a0, sp, MENTRY_IPI_PENDING_OFFSET
   amoswap.w a0, x0, (a0)
 #else
-  lw a0, MENTRY_IPI_PENDING_OFFSET(a0)
-  sw x0, MENTRY_IPI_PENDING_OFFSET(a0)
+  lw a0, MENTRY_IPI_PENDING_OFFSET(sp)
+  sw x0, MENTRY_IPI_PENDING_OFFSET(sp)
 #endif
   and a1, a0, IPI_SOFT
   beqz a1, 1f
@@ -91,6 +96,11 @@ trap_vector:
   beqz a1, 1f
   sfence.vma
 1:
+  andi a1, a0, IPI_HALT
+  beqz a1, 1f
+  wfi
+  j 1b
+1:
   j .Lmret
 
 
@@ -102,11 +112,11 @@ trap_vector:
   STORE t0, 5*REGBYTES(sp)
 1:auipc t0, %pcrel_hi(trap_table)  # t0 <- %hi(trap_table)
   STORE t1, 6*REGBYTES(sp)
-  sll t1, a1, 2                    # t1 <- mcause << 2
+  sll t1, a1, LOG_REGBYTES         # t1 <- mcause * ptr size
   STORE t2, 7*REGBYTES(sp)
   add t1, t0, t1                   # t1 <- %hi(trap_table)[mcause]
   STORE s0, 8*REGBYTES(sp)
-  LWU t1, %pcrel_lo(1b)(t1)         # t1 <- trap_table[mcause]
+  LOAD t1, %pcrel_lo(1b)(t1)       # t1 <- trap_table[mcause]
   STORE s1, 9*REGBYTES(sp)
   mv a0, sp                        # a0 <- regs
   STORE a2,12*REGBYTES(sp)

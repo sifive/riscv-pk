@@ -1,3 +1,5 @@
+# See LICENSE.Batten for license details.
+#
 #=========================================================================
 # Toplevel configure.ac for the Modular C++ Build System
 #=========================================================================
@@ -30,7 +32,7 @@ m4_define( proj_abbreviation, [riscv-pk])
 # distribution knows what version it came from. If you are not using
 # version control then it is fine to set this directly.
 
-m4_define( proj_version, [?])
+m4_define( proj_version, [1.0.0])
 
 #-------------------------------------------------------------------------
 # Setup
@@ -78,36 +80,29 @@ AC_ARG_VAR(RISCV, [top-level RISC-V install directory])
 # Set compiler flags
 #-------------------------------------------------------------------------
 
-default_CFLAGS="-Wall -Werror -D__NO_INLINE__ -mcmodel=medany -O2 -std=gnu99 -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks"
-
-AC_ARG_ENABLE([32bit],
-	AS_HELP_STRING([--enable-32bit], [Build a 32-bit pk]),
-	BUILD_32BIT=$enableval,
-	BUILD_32BIT=no)
-
-case "${BUILD_32BIT}" in
-  yes|default)
-	echo "Building 32-bit pk"
-	CFLAGS="$default_CFLAGS -m32"
-	LDFLAGS="-m32"
-	install_subdir="riscv32-unknown-elf"
-	;;
-  *)
-	CFLAGS="$default_CFLAGS"
-	LDFLAGS=
-	install_subdir="riscv64-unknown-elf"
-	;;
-esac
+AC_ARG_WITH([arch], AS_HELP_STRING([--with-arch], [Set the RISC-V architecture]),
+  [AC_SUBST([WITH_ARCH], $with_arch, [Specify architecture to build the project])])
 
 AC_ARG_ENABLE([print-device-tree], AS_HELP_STRING([--enable-print-device-tree], [Print DTS when booting]))
-AS_IF([test "x$enable_print_device_tree" == "xyes"], [
+AS_IF([test "x$enable_print_device_tree" = "xyes"], [
   AC_DEFINE([PK_PRINT_DEVICE_TREE],,[Define if the DTS is to be displayed])
 ])
+
+CFLAGS="-Wall -Werror -D__NO_INLINE__ -mcmodel=medany -O2 -std=gnu99 -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -fno-PIE"
+LDFLAGS="$LDFLAGS -Wl,--build-id=none"
 
 AC_SUBST(CFLAGS)
 AC_SUBST(LDFLAGS)
 AC_SUBST([LIBS], ["-lgcc"])
-AC_SUBST(install_subdir)
+AC_SUBST(WITH_ARCH)
+AC_SUBST(host_alias)
+
+AC_ARG_WITH([mem-start], AS_HELP_STRING([--with-mem-start], [Set physical memory start address]),
+  [
+   AC_SUBST([MEM_START], $with_mem_start, [Physical memory start address])
+  ], [
+   AC_SUBST([MEM_START], [0x80000000], [Physical memory start address])
+  ])
 
 #-------------------------------------------------------------------------
 # MCPPBS subproject list

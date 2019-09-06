@@ -1,6 +1,13 @@
+// See LICENSE for license details.
+
 #include <string.h>
 #include <stdint.h>
 #include <ctype.h>
+
+#ifdef __GNUC__
+// Don't let GCC pattern-match these functions' bodies into self-calls
+#pragma GCC optimize ("no-tree-loop-distribute-patterns")
+#endif
 
 void* memcpy(void* dest, const void* src, size_t len)
 {
