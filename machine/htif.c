@@ -93,6 +93,7 @@ void htif_poweroff()
   while (1) {
     fromhost = 0;
     tohost = 1;
+    mb();
   }
 }
 
